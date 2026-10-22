@@ -15,7 +15,7 @@ Agent coding pakai model AI lokal (Gemma via Ollama).
 ## Setup
 ```bash
 pip install -r requirements.txt
-python -m agent_core.cli "tulis fungsi faktorial di python"
+python3 -m agent_core.cli "tulis fungsi faktorial di python"
 ```
 
 ## Struktur

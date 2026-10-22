@@ -13,7 +13,7 @@ class Tool:
     func: Any
 
     def __call__(self, args: dict[str, Any] | None = None) -> Any:
-        return self.func(args or {})
+        return self.func(**(args or {}))
 
 
 class ToolRegistry:

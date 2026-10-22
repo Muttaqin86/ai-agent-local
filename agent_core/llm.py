@@ -15,13 +15,15 @@ class LLMClient:
         self.base_url = base_url.rstrip('/')
         self.temperature = temperature
 
-    def complete(self, messages: list[dict[str, str]]) -> dict:
+    def complete(self, messages: list[dict[str, str]], tools: list[dict] | None = None) -> dict:
         payload = {
             'model': self.model_name,
             'messages': messages,
             'temperature': self.temperature,
             'stream': False,
         }
+        if tools:
+            payload['tools'] = tools
         try:
             resp = requests.post(
                 self.base_url + '/api/chat',
