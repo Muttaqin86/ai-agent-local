@@ -100,11 +100,15 @@ class Agent:
         """Parsing TOOL: / ARGS: / CONTENT: dari teks respons model (fallback untuk
         model yang tidak mendukung native tool calling via Ollama).
 
-        Format yang diharapkan:
+        Format yang diharapkan (baru):
             TOOL: nama_tool
             ARGS: {"key": "value"}
             CONTENT:
             <teks konten bebas, boleh multiline, sampai TOOL berikutnya atau EOF>
+
+        Format lama (fallback, konten di dalam ARGS JSON):
+            TOOL: nama_tool
+            ARGS: {"key": "value", "content": "..."}
         """
         import re
         import json
@@ -120,19 +124,35 @@ class Agent:
             end = tool_positions[idx + 1][0] if idx + 1 < len(tool_positions) else len(content)
             block = content[start:end]
 
-            # Ekstrak ARGS (satu baris JSON)
             args = {}
-            args_m = re.search(r'^ARGS:\s*(\{.*\})\s*$', block, re.MULTILINE)
-            if args_m:
-                try:
-                    args = json.loads(args_m.group(1))
-                except Exception:
-                    args = {}
 
-            # Ekstrak CONTENT (teks setelah baris 'CONTENT:' sampai akhir blok)
+            # --- Format baru: ambil CONTENT dari delimiter CONTENT: ---
             content_m = re.search(r'^CONTENT:\s*$\n(.*)', block, re.DOTALL | re.MULTILINE)
             if content_m:
                 args['content'] = content_m.group(1).rstrip('\n')
+
+            # --- Ambil ARGS (satu baris JSON, boleh multiline jika konten di dalam) ---
+            args_m = re.search(r'^ARGS:\s*(\{.*\})\s*$', block, re.MULTILINE | re.DOTALL)
+            if args_m:
+                try:
+                    parsed = json.loads(args_m.group(1))
+                    if isinstance(parsed, dict):
+                        # Jika sudah ada 'content' dari format baru, jangan timpa
+                        for k, v in parsed.items():
+                            if k not in args:
+                                args[k] = v
+                except Exception:
+                    # JSON rusak (mis. triple quotes di dalam string). Coba ekstrak
+                    # path dan content secara kasar via regex agar tidak sia-sia.
+                    path_m = re.search(r'"path"\s*:\s*"([^"]+)"', args_m.group(1))
+                    if path_m and 'path' not in args:
+                        args['path'] = path_m.group(1)
+                    if 'content' not in args:
+                        # Coba ambil isi setelah "content": sampai akhir blok
+                        c_m = re.search(r'"content"\s*:\s*"{1,3}(.*?)"{1,3}?\s*\}?\s*$',
+                                        args_m.group(1), re.DOTALL)
+                        if c_m:
+                            args['content'] = c_m.group(1).strip()
 
             tool_calls.append({'name': name, 'arguments': args})
 
