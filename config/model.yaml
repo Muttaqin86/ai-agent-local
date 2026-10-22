@@ -1,0 +1,16 @@
+# Config model AI lokal
+model:
+  name: "gemma3:4b"
+  provider: "ollama"
+  host: "localhost"
+  port: 11434
+  base_url: "http://localhost:11434"
+
+run:
+  max_iterations: 50
+  temperature: 0.2
+  timeout: 120
+
+logging:
+  level: "INFO"
+  file: "logs/agent.log"

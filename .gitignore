@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv/
+venv/
+
+# Probe / scratch files from development
+_agent_probe*
+_*_probe*
+*_probe*
+_nova*
+z.txt
+_nova.txt
+_nova_copy.txt
+
+# Logs
+logs/
+*.log
