@@ -109,15 +109,35 @@ class Agent:
         Format lama (fallback, konten di dalam ARGS JSON):
             TOOL: nama_tool
             ARGS: {"key": "value", "content": "..."}
+
+        Fallback tanpa TOOL: (hanya CONTENT:):
+            CONTENT:
+            <teks konten>
         """
         import re
         import json
+
+        def strip_code_blocks(text: str) -> str:
+            """Hapus penanda markdown code block (```lang ... ```) dari teks."""
+            text = re.sub(r'^```\w*\s*\n', '', text, flags=re.MULTILINE)
+            text = re.sub(r'\n```\s*$', '', text, flags=re.MULTILINE)
+            return text.strip()
 
         tool_calls = []
 
         # Temukan semua posisi 'TOOL: nama' untuk mengetahui batas tiap blok
         tool_pattern = re.compile(r'^TOOL:\s*(\S+)', re.MULTILINE)
         tool_positions = [(m.start(), m.group(1).strip()) for m in tool_pattern.finditer(content)]
+
+        # Jika tidak ada TOOL: tapi ada CONTENT:, buat satu synthetic tool call
+        if not tool_positions:
+            content_m = re.search(r'^CONTENT:\s*$\n(.*)', content, re.DOTALL | re.MULTILINE)
+            if content_m:
+                args = {'content': strip_code_blocks(content_m.group(1)).rstrip('\n')}
+                if 'path' not in args:
+                    args['path'] = 'index.html'
+                tool_calls.append({'name': 'write_file', 'arguments': args})
+            return tool_calls
 
         for idx, (start, name) in enumerate(tool_positions):
             # Akhir blok = awal TOOL berikutnya, atau akhir string
@@ -129,7 +149,7 @@ class Agent:
             # --- Format baru: ambil CONTENT dari delimiter CONTENT: ---
             content_m = re.search(r'^CONTENT:\s*$\n(.*)', block, re.DOTALL | re.MULTILINE)
             if content_m:
-                args['content'] = content_m.group(1).rstrip('\n')
+                args['content'] = strip_code_blocks(content_m.group(1)).rstrip('\n')
 
             # --- Ambil ARGS (satu baris JSON, boleh multiline jika konten di dalam) ---
             args_m = re.search(r'^ARGS:\s*(\{.*\})\s*$', block, re.MULTILINE | re.DOTALL)
@@ -152,7 +172,11 @@ class Agent:
                         c_m = re.search(r'"content"\s*:\s*"{1,3}(.*?)"{1,3}?\s*\}?\s*$',
                                         args_m.group(1), re.DOTALL)
                         if c_m:
-                            args['content'] = c_m.group(1).strip()
+                            args['content'] = strip_code_blocks(c_m.group(1)).strip()
+
+            # Default path kalau model lupa sertakan "path"
+            if 'path' not in args:
+                args['path'] = 'index.html'
 
             tool_calls.append({'name': name, 'arguments': args})
 
