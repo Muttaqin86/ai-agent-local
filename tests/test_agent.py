@@ -1,6 +1,8 @@
 
 
 
+import os
+import tempfile
 import unittest
 from unittest.mock import patch, MagicMock
 # Test minimal for the local AI coding agent.
@@ -99,3 +101,67 @@ class TestAgentLoop(unittest.TestCase):
         args = mock_tool.call_args[0][0]
         self.assertEqual(args['path'], 'x.txt')
         self.assertEqual(args['content'], 'isi file')
+
+    def test_edit_file_single_replacement(self):
+        from tools.file_tool import edit_file, read_file
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write('def hello():\n    print("Hello World")\n')
+            tmp_path = f.name
+
+        try:
+            result = edit_file(tmp_path, 'Hello World', 'Hello Universe')
+            self.assertEqual(result['status'], 'success')
+            content = read_file(tmp_path)['content']
+            self.assertIn('Hello Universe', content)
+            self.assertNotIn('Hello World', content)
+        finally:
+            os.unlink(tmp_path)
+
+    def test_edit_file_file_not_found(self):
+        from tools.file_tool import edit_file
+        result = edit_file('/nonexistent/path/file.txt', 'a', 'b')
+        self.assertEqual(result['status'], 'error')
+
+    def test_edit_file_old_str_not_found(self):
+        from tools.file_tool import edit_file
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write('foo bar baz\n')
+            tmp_path = f.name
+
+        try:
+            result = edit_file(tmp_path, 'xyz', 'abc')
+            self.assertEqual(result['status'], 'error')
+            self.assertIn('not found', result['message'])
+        finally:
+            os.unlink(tmp_path)
+
+    def test_edit_file_multiple_occurrences_ambiguous(self):
+        from tools.file_tool import edit_file
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write('foo foo foo\n')
+            tmp_path = f.name
+
+        try:
+            result = edit_file(tmp_path, 'foo', 'bar')
+            self.assertEqual(result['status'], 'error')
+            self.assertIn('appears', result['message'])
+        finally:
+            os.unlink(tmp_path)
+
+    def test_edit_file_replace_all(self):
+        from tools.file_tool import edit_file, read_file
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write('foo foo foo\n')
+            tmp_path = f.name
+
+        try:
+            result = edit_file(tmp_path, 'foo', 'bar', replace_all=True)
+            self.assertEqual(result['status'], 'success')
+            content = read_file(tmp_path)['content']
+            self.assertEqual(content, 'bar bar bar\n')
+        finally:
+            os.unlink(tmp_path)

@@ -1,6 +1,6 @@
 # Config model AI lokal
 model:
-  name: "gemma3:4b"
+  name: "qwen3:8b"
   provider: "ollama"
   host: "localhost"
   port: 11434

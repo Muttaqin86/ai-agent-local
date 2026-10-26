@@ -52,8 +52,22 @@ class Agent:
         base = (
             'Anda adalah AI coding agent yang membantu developer menulis, '
             'memperbaiki, dan memeriksa kode secara interaktif. Anda dapat '
-            'menggunakan tool untuk membaca file, menulis/ketemukan, mengeksekusi '
+            'menggunakan tool untuk membaca file, menulis/menemukan, mengeksekusi '
             'perintah shell, dan mencari di repositori.' + chr(10) + chr(10) +
+            'PENTING: Sebelum mengedit file yang SUDAH ADA, selalu baca terlebih dahulu '
+            'file tersebut dengan read_file untuk mengetahui isinya saat ini. Jangan '
+            'menebak isi file; gunakan teks yang EXAKT dari hasil read_file sebagai '
+            'old_str dalam edit_file.' + chr(10) +
+            'Gunakan edit_file untuk mengubah sebagian isi file (misalnya menambah, '
+            'mengganti, atau menghapus teks tertentu). Jangan gunakan write_file untuk '
+            'memodifikasi file yang sudah ada, karena write_file akan MENGHAPUS dan '
+            'mengganti SELURUH isi file dengan konten baru. Gunakan write_file hanya '
+            'untuk membuat file BARU atau jika sengaja ingin menimpa seluruh isi file.' + chr(10) + chr(10) +
+            'SETELAH edit_file atau write_file dieksekusi, SELALU verifikasi dengan '
+            'memanggil read_file kembali pada path yang sama dan bandingkan isi baru '
+            'dengan yang diharapkan. Jika hasil read_file belum sesuai, perbaiki dengan '
+            'edit_file lagi. Jangan bilang "selesai" sebelum Anda memverifikasi isi file '
+            'secara langsung.' + chr(10) + chr(10) +
             'Gunakan tool sesuai kebutuhan. Jawab dalam bahasa sesuai permintaan user.'
         )
         tools_prompt = self._build_tools_prompt()
@@ -212,6 +226,11 @@ class Agent:
                 })
         return tools
 
+    def _has_tool_error(self, observations) -> bool:
+        """Cek apakah salah satu hasil tool mengandung status error."""
+        text = str(observations)
+        return ('"status": "error"' in text) or ("'status': 'error'" in text)
+
     def run(self, user_input: str) -> str:
         self.history.append({'role': 'user', 'content': user_input})
         for iteration in range(self.max_iterations):
@@ -229,4 +248,32 @@ class Agent:
             observations = self._execute_tools(tool_calls)
             logger.info('Tool observations appended. Total history: %d', len(self.history))
             self.history.append({'role': 'observation', 'content': observations})
+
+            # Jika ada tool yang gagal, jangan anggap selesai. Beri tahu LLM
+            # agar memperbaiki parameter (misalnya old_str yang tidak cocok).
+            if self._has_tool_error(observations):
+                logger.warning('Tool error detected; continuing loop for correction')
+                continue
+
+            # Setelah edit_file/write_file sukses, paksa verifikasi read_file
+            # agar agent memastikan perubahan benar-benar tertulis.
+            needs_verify = False
+            for tc in tool_calls:
+                if tc.get('name') in ('edit_file', 'write_file'):
+                    needs_verify = True
+                    break
+            if needs_verify:
+                for tc in tool_calls:
+                    if tc.get('name') in ('edit_file', 'write_file'):
+                        path = tc.get('arguments', {}).get('path')
+                        if path:
+                            verify = self.tools.get('read_file')
+                            if verify:
+                                result = verify({'path': path})
+                                self.history.append({
+                                    'role': 'observation',
+                                    'content': 'VERIFIKASI read_file(' + str(path) + '): ' + str(result),
+                                })
+                                logger.info('Verification read_file for %s', path)
+                continue
         return 'Max iterations reached.'

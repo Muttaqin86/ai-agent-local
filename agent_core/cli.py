@@ -6,7 +6,7 @@ from .agent import Agent
 from .config import load_config
 
 from tools.tool import Tool
-from tools.file_tool import read_file, write_file, glob_files
+from tools.file_tool import read_file, write_file, glob_files, edit_file
 from tools.bash_tool import bash_run
 from tools.search_tool import search_code
 
@@ -33,7 +33,7 @@ def main(argv=None):
     tools = {
         'write_file': Tool(
             name='write_file',
-            description='Tulis konten ke file. Args: path (str), content (str).',
+            description='Tulis konten ke file. PERINGATAN: akan MENGHAPUS dan menimpa SELURUH isi file jika file sudah ada. Gunakan hanya untuk file BARU atau penggantian total. Args: path (str), content (str).',
             func=write_file,
         ),
         'read_file': Tool(
@@ -55,6 +55,11 @@ def main(argv=None):
             name='search_code',
             description='Cari teks di dalam file repositori. Args: pattern (str).',
             func=search_code,
+        ),
+        'edit_file': Tool(
+            name='edit_file',
+            description='Ganti teks dalam file. Args: path (str), old_str (str), new_str (str), replace_all (bool, optional).',
+            func=edit_file,
         ),
     }
     agent = Agent(
