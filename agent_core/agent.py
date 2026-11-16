@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from . import config as agent_config
+from . memory import AgentMemory
 from .llm import LLMClient
 
 from tools.tool import Tool
@@ -22,6 +23,7 @@ class Agent:
         temperature=0.2,
     ):
         self.config = agent_config.load_config()
+        self.memory = AgentMemory()
         self.llm = LLMClient(
             model_name=model_name or self.config['model']['name'],
             base_url=base_url or self.config['model']['base_url'],
@@ -276,4 +278,7 @@ class Agent:
                                 })
                                 logger.info('Verification read_file for %s', path)
                 continue
+        
+        # Simpan memory
+        self.memory.save({'conversation_history': self.history[-20:], 'project_context': self.memory.get_project_context(), 'last_run': str(self.history)})
         return 'Max iterations reached.'
