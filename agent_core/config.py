@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import os
 import yaml
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -11,20 +12,20 @@ DEFAULT_CONFIG_PATH = BASE_DIR / 'config' / 'model.yaml'
 def _default_config():
     return {
         'model': {
-            'name': 'gemma3:4b',
-            'provider': 'ollama',
-            'host': 'localhost',
-            'port': 11434,
-            'base_url': 'http://localhost:11434',
+            'name': os.environ.get('AGENT_MODEL', 'gemma3:4b'),
+            'provider': os.environ.get('AGENT_PROVIDER', 'ollama'),
+            'host': os.environ.get('AGENT_HOST', 'localhost'),
+            'port': int(os.environ.get('AGENT_PORT', 11434)),
+            'base_url': os.environ.get('AGENT_BASE_URL', 'http://localhost:11434'),
         },
         'run': {
-            'max_iterations': 50,
-            'temperature': 0.2,
-            'timeout': 120,
+            'max_iterations': int(os.environ.get('AGENT_MAX_ITERATIONS', 50)),
+            'temperature': float(os.environ.get('AGENT_TEMPERATURE', 0.2)),
+            'timeout': int(os.environ.get('AGENT_TIMEOUT', 120)),
         },
         'logging': {
-            'level': 'INFO',
-            'file': 'logs/agent.log',
+            'level': os.environ.get('AGENT_LOG_LEVEL', 'INFO'),
+            'file': os.environ.get('AGENT_LOG_FILE', 'logs/agent.log'),
         },
     }
 
