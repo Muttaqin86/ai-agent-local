@@ -14,6 +14,7 @@ def _default_config():
         'model': {
             'name': os.environ.get('AGENT_MODEL', 'gemma3:4b'),
             'provider': os.environ.get('AGENT_PROVIDER', 'ollama'),
+            'api_key': os.environ.get('AGENT_API_KEY', ''),
             'host': os.environ.get('AGENT_HOST', 'localhost'),
             'port': int(os.environ.get('AGENT_PORT', 11434)),
             'base_url': os.environ.get('AGENT_BASE_URL', 'http://localhost:11434'),
